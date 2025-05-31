@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Volume Compounder</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Removed Chart.js CDN here -->
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 900px;
+            margin-top: 50px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            animation: fadeIn 0.8s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            color: #007bff;
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 700;
+        }
+        .form-label {
+            font-weight: bold;
+            color: #343a40;
+        }
+        .btn-primary, .btn-success {
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #004085;
+        }
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+        .btn-success:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+        #resultsTable {
+            margin-top: 30px;
+            animation: slideInUp 0.7s ease-out;
+        }
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .table thead {
+            background-color: #007bff;
+            color: white;
+            font-weight: 600;
+        }
+        .table tbody tr:hover {
+            background-color: #e2f2ff;
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            color: #007bff;
+        }
+        .alert {
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        #exportExcelBtn {
+            display: none; /* Hidden by default */
+        }
+        /* Removed .chart-container styles as chart is removed */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Water Volume Compounder</h1>
+
+        <form id="compoundForm" action="/calculate" method="POST">
+            <div class="mb-3">
+                <label for="initial_volume" class="form-label">Initial Water Volume</label>
+                <input type="number" step="any" class="form-control" id="initial_volume" name="initial_volume" placeholder="e.g., 20000000 (20 million)" required>
+            </div>
+            <div class="mb-3">
+                <label for="unit" class="form-label">Unit</label>
+                <select class="form-select" id="unit" name="unit">
+                    <option value="litres">Litres</option>
+                    <option value="gallons">Gallons</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="iterations" class="form-label">Number of Iterations</label>
+                <input type="number" class="form-control" id="iterations" name="iterations" min="1" max="100" placeholder="e.g., 5" required>
+                <div class="form-text">Max 100 iterations to prevent performance issues due to extremely rapid growth.</div>
+            </div>
+            <div class="mb-3">
+                <label for="time_rate" class="form-label">Time to Fill Rate (Liters per unit time)</label>
+                <input type="number" step="any" class="form-control" id="time_rate" name="time_rate" placeholder="e.g., 1000 (liters per day/hour/year)">
+                <div class="form-text">Optional: Enter a rate to estimate how long it would take to fill larger bodies.</div>
+            </div>
+            <div class="mb-3">
+                <label for="time_unit" class="form-label">Time Rate Unit</label>
+                <select class="form-select" id="time_unit" name="time_unit">
+                    <option value="">Select Unit (Optional)</option>
+                    <option value="second">Second</option>
+                    <option value="minute">Minute</option>
+                    <option value="hour">Hour</option>
+                    <option value="day">Day</option>
+                    <option value="year">Year</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Calculate</button>
+        </form>
+
+        <div id="errorAlert" class="alert alert-danger mt-3" style="display: none;"></div>
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Calculating...</p>
+        </div>
+
+        <button id="exportExcelBtn" class="btn btn-success w-100 mt-3" style="display:none;">Export to Excel</button>
+
+        <!-- Removed Chart Container -->
+        <!-- <div id="volumeChartContainer" class="chart-container">
+            <canvas id="volumeChart"></canvas>
+        </div> -->
+
+        <div id="resultsTable" class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Iteration</th>
+                        <th>Volume (Litres)</th>
+                        <th>Volume (Gallons)</th>
+                        <th>Comparison</th>
+                        <th>Time to Fill (Estimate)</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                    <!-- Results will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>© 2024 Water Volume Compounder. All rights reserved.</p>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    
+    <!-- Script tag moved to the very end of the body for guaranteed DOM readiness -->
+    <script>
+        (function() {
+            const compoundForm = document.getElementById('compoundForm');
+            const initialVolumeInput = document.getElementById('initial_volume');
+            const unitInput = document.getElementById('unit');
+            const iterationsInput = document.getElementById('iterations');
+            const timeRateInput = document.getElementById('time_rate');
+            const timeUnitInput = document.getElementById('time_unit');
+
+            const errorAlert = document.getElementById('errorAlert');
+            const loadingSpinner = document.querySelector('.loading-spinner');
+            const resultsBody = document.getElementById('resultsBody');
+            const exportExcelBtn = document.getElementById('exportExcelBtn');
+            // Removed references to chart elements
+            // const volumeChartContainer = document.getElementById('volumeChartContainer');
+            // const volumeChartCanvas = document.getElementById('volumeChart');
+            // let volumeChartInstance = null; 
+
+            // COMPARISON_LINES is no longer needed on the frontend as charts are removed.
+            // const COMPARISON_LINES = JSON.parse('{{ comparison_lines_json | safe }}');
+
+            // Removed formatLargeNumberSpokenClient as it was primarily for chart ticks
+            // The backend now sends pre-formatted strings for the table.
+
+
+            compoundForm.addEventListener('submit', async function(event) {
+                console.log("Form submission event received. Preventing default.");
+                event.preventDefault(); // THIS IS CRITICAL AND MUST BE FIRST
+
+                errorAlert.style.display = 'none';
+                resultsBody.innerHTML = ''; // Clear previous results
+                exportExcelBtn.style.display = 'none'; // Hide export button
+                // Removed hide chart container
+                // volumeChartContainer.style.display = 'none'; 
+                loadingSpinner.style.display = 'block'; // Show spinner
+
+                const formData = new FormData(compoundForm);
+                
+                // Pass time rate data for calculation
+                formData.append('time_rate', timeRateInput.value);
+                formData.append('time_unit', timeUnitInput.value);
+
+                try {
+                    const response = await fetch('/calculate', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const contentType = response.headers.get("content-type");
+                    if (response.ok && contentType && contentType.indexOf("application/json") !== -1) {
+                        const data = await response.json();
+                        // Removed chart related data arrays
+                        // const chartLabels = [];
+                        // const chartData = [];
+                        data.forEach(row => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${row.iteration}</td>
+                                <td>${row.volume_liters}</td>
+                                <td>${row.volume_gallons}</td>
+                                <td>${row.description}</td>
+                                <td>${row.time_to_fill}</td>
+                            `;
+                            resultsBody.appendChild(tr);
+
+                            // Removed chart data pushing
+                            // chartLabels.push(`Iteration ${row.iteration}`);
+                            // chartData.push(row.volume_liters_raw === "Infinity" ? Number.MAX_VALUE : row.volume_liters_raw);
+                        });
+
+                        // Removed chart rendering
+                        // renderVolumeChart(chartLabels, chartData);
+                        // Removed show chart container
+                        // volumeChartContainer.style.display = 'block'; 
+
+                        exportExcelBtn.style.display = 'block'; // Show export button on successful calculation
+                    } else if (response.ok) {
+                        const text = await response.text();
+                        console.error("Received non-JSON response:", text);
+                        errorAlert.textContent = "Received unexpected response from server. Check console for details.";
+                        errorAlert.style.display = 'block';
+                    }
+                    else {
+                        const errorData = await response.json();
+                        errorAlert.textContent = errorData.error || 'An unknown error occurred.';
+                        errorAlert.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error during fetch or JSON parsing:', error);
+                    errorAlert.textContent = 'Failed to connect to the server or process response. Please try again.';
+                    errorAlert.style.display = 'block';
+                } finally {
+                    loadingSpinner.style.display = 'none'; // Hide spinner
+                }
+            });
+
+            exportExcelBtn.addEventListener('click', async function() {
+                const initial_volume_val = initialVolumeInput.value;
+                const unit_val = unitInput.value;
+                const iterations_val = iterationsInput.value;
+                const time_rate_val = timeRateInput.value;
+                const time_unit_val = timeUnitInput.value;
+
+                // Create a temporary form to submit data for export
+                const exportForm = document.createElement('form');
+                exportForm.action = '/export_excel';
+                exportForm.method = 'POST';
+                exportForm.style.display = 'none'; // Hide the form
+
+                const initialVolumeInputHidden = document.createElement('input');
+                initialVolumeInputHidden.type = 'hidden';
+                initialVolumeInputHidden.name = 'initial_volume_excel';
+                initialVolumeInputHidden.value = initial_volume_val;
+                exportForm.appendChild(initialVolumeInputHidden);
+
+                const unitInputHidden = document.createElement('input');
+                unitInputHidden.type = 'hidden';
+                unitInputHidden.name = 'unit_excel';
+                unitInputHidden.value = unit_val;
+                exportForm.appendChild(unitInputHidden);
+
+                const iterationsInputHidden = document.createElement('input');
+                iterationsInputHidden.type = 'hidden';
+                iterationsInputHidden.name = 'iterations_excel';
+                iterationsInputHidden.value = iterations_val;
+                exportForm.appendChild(iterationsInputHidden);
+
+                const timeRateInputHidden = document.createElement('input');
+                timeRateInputHidden.type = 'hidden';
+                timeRateInputHidden.name = 'time_rate_excel';
+                timeRateInputHidden.value = time_rate_val;
+                exportForm.appendChild(timeRateInputHidden);
+
+                const timeUnitInputHidden = document.createElement('input');
+                timeUnitInputHidden.type = 'hidden';
+                timeUnitInputHidden.name = 'time_unit_excel';
+                timeUnitInputHidden.value = time_unit_val;
+                exportForm.appendChild(timeUnitInputHidden);
+
+
+                document.body.appendChild(exportForm);
+                exportForm.submit(); // Submit the form to trigger download
+                document.body.removeChild(exportForm); // Clean up the form
+            });
+
+            // Removed renderVolumeChart function
+            /*
+            function renderVolumeChart(labels, data) {
+                // ... (chart rendering logic)
+            }
+            */
+        })(); // End of IIFE
+    </script>
+</body>
+</html>
